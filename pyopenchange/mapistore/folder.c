@@ -851,6 +851,85 @@ static PyObject *py_MAPIStoreFolder_open_table(PyMAPIStoreFolderObject *self, Py
 
 	return (PyObject *)table;
 }
+
+/* *** HACK: METHOD THAT PERMITS SAMPLE BACKEND MESSAGE TEST *** */
+static PyObject *py_MAPIStoreFolder_open_message_by_mid(PyMAPIStoreFolderObject *self, PyObject *args, PyObject *kwargs)
+{
+	PyMAPIStoreMessageObject	*message;
+	char				*kwnames[] = { "mid", "read_write", NULL };
+	void				*message_object;
+	enum mapistore_error		retval;
+	uint64_t			mid;
+	uint16_t			read_write = 0x0;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "K|H", kwnames, &mid, &read_write)) {
+		return NULL;
+	}
+
+	/* Check 'read_write' range */
+	if ((read_write < 0) || (read_write > 1)) {
+		DEBUG(0, ("[ERR][%s]: 'read_write' argument out of range\n", __location__));
+		PyErr_SetMAPIStoreError(MAPISTORE_ERR_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	/* Open the message (read-only by default) */
+	retval = mapistore_folder_open_message(self->context->mstore_ctx, self->context->context_id,
+			self->folder_object, self->mem_ctx, mid, (bool)read_write, &message_object);
+
+	if (retval != MAPISTORE_SUCCESS) {
+		PyErr_SetMAPIStoreError(retval);
+		return NULL;
+	}
+
+	/* Return the message object */
+	message = PyObject_New(PyMAPIStoreMessageObject, &PyMAPIStoreMessage);
+	if (message == NULL) {
+		PyErr_NoMemory();
+		return NULL;
+	}
+
+	message->mem_ctx = self->mem_ctx;
+	message->context = self->context;
+	Py_INCREF(message->context);
+
+	message->message_object = message_object;
+	message->mid = mid;
+
+	return (PyObject *)message;
+}
+
+static PyObject *py_MAPIStoreFolder_delete_message_by_mid(PyMAPIStoreFolderObject *self, PyObject *args, PyObject *kwargs)
+{
+	char				*kwnames[] = { "mid", "flags", NULL };
+	enum mapistore_error		retval;
+	uint64_t			mid;
+	uint16_t			flags = MAPISTORE_PERMANENT_DELETE;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "K|H", kwnames, &mid, &flags)) {
+		return NULL;
+	}
+
+	/* Check 'flags' range */
+	if ((flags < MAPISTORE_SOFT_DELETE) || (flags > MAPISTORE_PERMANENT_DELETE)) {
+		DEBUG(0, ("[ERR][%s]: 'table_type' argument out of range\n", __location__));
+		PyErr_SetMAPIStoreError(MAPISTORE_ERR_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	/* Delete the message (soft/hard delete depending on the flags)*/
+	retval = mapistore_folder_delete_message(self->context->mstore_ctx, self->context->context_id,
+						self->folder_object, mid, (uint8_t) flags);
+
+	if (retval != MAPISTORE_SUCCESS) {
+		PyErr_SetMAPIStoreError(retval);
+		return NULL;
+	}
+
+	Py_RETURN_NONE;
+}
+/* *** *** *** */
+
 static PyMethodDef mapistore_folder_methods[] = {
 	{ "create_folder", (PyCFunction)py_MAPIStoreFolder_create_folder, METH_VARARGS|METH_KEYWORDS },
 	{ "open_folder", (PyCFunction)py_MAPIStoreFolder_open_folder, METH_VARARGS|METH_KEYWORDS },
@@ -867,6 +946,10 @@ static PyMethodDef mapistore_folder_methods[] = {
 	{ "copy_messages", (PyCFunction)py_MAPIStoreFolder_copy_messages, METH_VARARGS|METH_KEYWORDS },
 	{ "move_messages", (PyCFunction)py_MAPIStoreFolder_move_messages, METH_VARARGS|METH_KEYWORDS },
 	{ "open_table", (PyCFunction)py_MAPIStoreFolder_open_table, METH_VARARGS|METH_KEYWORDS },
+	/* HACK */
+	{ "open_message_by_mid", (PyCFunction)py_MAPIStoreFolder_open_message_by_mid, METH_VARARGS|METH_KEYWORDS },
+	{ "delete_message_by_mid", (PyCFunction)py_MAPIStoreFolder_delete_message_by_mid, METH_VARARGS|METH_KEYWORDS },
+	/* *** */
 	{ NULL },
 };
 
