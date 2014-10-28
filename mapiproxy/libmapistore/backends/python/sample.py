@@ -743,6 +743,32 @@ class FolderObject(ContextObject):
         target_folder.basedict["PidTagSubfolders"] = len(target_folder.basedict["subfolders"]) > 0
         return mapistore.errors.MAPISTORE_SUCCESS
 
+    def move_folder(self, target_folder, new_name):
+        print '[PYTHON]: %s folder.move_folder()' % (self.name)
+
+        if self.parentdict is None:
+            return 23
+
+        self.copy_folder(target_folder, True, new_name)
+        self.delete()
+
+        return 0
+
+    def copy_folder(self, target_folder, recursive, new_name):
+        print '[PYTHON]: %s folder.copy_folder()' % (self.name)
+
+        if self.parentdict is None:
+            return 23
+
+        folder = self.basedict.copy()
+        folder["properties"]["PidTagDisplayName"] = new_name
+        folder["properties"]["PidTagParentFolderId"] = target_folder.basedict["properties"]["PidTagFolderId"]
+        if recursive:
+            folder["subfolders"] = []
+        target_folder.basedict["subfolders"].append(folder)
+
+        return 0
+
     def get_properties(self, properties):
         print '[PYTHON]: %s folder.get_properties()' % (self.name)
 
