@@ -785,6 +785,138 @@ _PUBLIC_ enum mapistore_error mapistore_folder_move_folder(struct mapistore_cont
 /**
 
  */
+_PUBLIC_ enum mapistore_error mapistore_folder_move_copy_messages_between_backends(struct mapistore_context *mstore_ctx, uint32_t target_context_id,
+										   void *target_folder, uint32_t source_context_id, void *source_folder,
+										   TALLOC_CTX *mem_ctx, uint32_t mid_count, uint64_t *source_mids,
+										   uint64_t *target_mids, struct Binary_r **target_change_keys, uint8_t want_copy)
+{
+	struct backend_context	*source_backend_ctx;
+	struct backend_context	*target_backend_ctx;
+	uint32_t		i;
+	/* Sanity checks */
+	MAPISTORE_SANITY_CHECKS(mstore_ctx, NULL);
+
+	/* Step 1. Search the contexts */
+	source_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, source_context_id);
+	MAPISTORE_RETVAL_IF(!source_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+
+	target_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, target_context_id);
+	MAPISTORE_RETVAL_IF(!target_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+
+	/* Step 2. Copy the messages between folders */
+	for (i = 0; i < mid_count; i++) {
+		/* Step 2a. Create a message */
+		/* Step 2b. Get the source message properties */
+		/* Step 2c. Set the properties of the target message */
+		/* Step 2d. If it's a move operation, delete the source message */
+	}
+
+	return MAPISTORE_SUCCESS;
+}
+
+/**
+
+ */
+_PUBLIC_ enum mapistore_error mapistore_folder_copy_folder_between_backends(struct mapistore_context *mstore_ctx, uint32_t source_context_id, void *move_folder,
+									    uint32_t target_context_id, void *target_folder, TALLOC_CTX *mem_ctx, bool recursive,
+									    const char *new_folder_name)
+{
+	TALLOC_CTX		*local_mem_ctx;
+	struct backend_context	*source_backend_ctx;
+	struct backend_context	*target_backend_ctx;
+	struct SRow 		*aRow;
+	void			*child_folder;
+	uint64_t		new_fid;
+	enum mapistore_error 	retval;
+
+	/* Sanity checks */
+	MAPISTORE_SANITY_CHECKS(mstore_ctx, NULL);
+
+	/* Step 1. Search the contexts */
+	source_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, source_context_id);
+	MAPISTORE_RETVAL_IF(!source_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+
+	target_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, target_context_id);
+	MAPISTORE_RETVAL_IF(!target_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+
+	/* Step 2. Create a subfolder in the target folder */
+	local_mem_ctx = talloc_new(NULL);
+	if (local_mem_ctx == NULL) {
+		return MAPISTORE_ERR_NO_MEMORY;
+	}
+
+	/* Step 2a. Get FID for the new folder (backend should care about not duplicating folders) */
+	retval = mapistore_indexing_get_new_folderID(mstore_ctx, &new_fid);
+
+	if (retval != MAPISTORE_SUCCESS) {
+		goto end;
+	}
+
+	/* Step 2b. Get the properties of the folder */
+	/* Step 2c. Create the folder */
+	/* Step 2d. Change the name of the folder */
+
+	/* Set the name and properties of the folder */
+	aRow = talloc_zero(local_mem_ctx, struct SRow);
+	if (aRow == NULL) {
+		retval = MAPISTORE_ERR_NO_MEMORY;
+		goto end;
+	}
+
+	aRow->lpProps = talloc_array(aRow, struct SPropValue, 3);
+	if (retval != MAPISTORE_SUCCESS) {
+		retval = MAPISTORE_ERR_NO_MEMORY;
+		goto end;
+	}
+	aRow->cValues = 0;
+
+	/* We assume the name is in UNICODE */
+	aRow->lpProps = add_SPropValue(mem_ctx, aRow->lpProps, &(aRow->cValues),
+				       PR_DISPLAY_NAME_UNICODE, (void *)new_folder_name);
+
+	retval = mapistore_backend_folder_create_folder(target_backend_ctx, target_folder, mem_ctx, new_fid, aRow, &child_folder);
+	talloc_free(aRow);
+	if (retval != MAPISTORE_SUCCESS) {
+		goto end;
+	}
+
+	/* Step 3. Copy the contents of the folder into the new one */
+	/* Step 3a. Copy normal messages */
+	/* Step 3b. copy FAI messages */
+	/* Step 3c. Copy child folders */
+end:
+	talloc_free(local_mem_ctx);
+	return retval;
+}
+
+/**
+
+ */
+_PUBLIC_ enum mapistore_error mapistore_folder_move_folder_between_backends(struct mapistore_context *mstore_ctx, uint32_t source_context_id,
+									    void *move_folder, uint32_t target_context_id, void *target_folder,
+									    TALLOC_CTX *mem_ctx, const char *new_folder_name)
+{
+	enum mapistore_error	retval;
+	bool			recursive = true;
+
+	/* Sanity checks */
+	MAPISTORE_SANITY_CHECKS(mstore_ctx, NULL);
+
+	/* Step 1. Call the copy_folder method (with the recursive flag set) */
+	retval = mapistore_folder_copy_folder_between_backends(mstore_ctx, source_context_id, move_folder, target_context_id,
+							       target_folder, mem_ctx, recursive, new_folder_name);
+	if (retval != MAPISTORE_SUCCESS) {
+		return retval;
+	}
+
+	/* Step 2. Delete the folder */
+	return mapistore_folder_delete(mstore_ctx, source_context_id, move_folder, DEL_FOLDERS|DEL_MESSAGES);
+}
+
+
+/**
+
+ */
 _PUBLIC_ enum mapistore_error mapistore_folder_copy_folder(struct mapistore_context *mstore_ctx, uint32_t context_id,
 							   void *move_folder, void *target_folder, TALLOC_CTX *mem_ctx, bool recursive, const char *new_folder_name)
 {

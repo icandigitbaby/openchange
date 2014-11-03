@@ -331,7 +331,10 @@ enum mapistore_error mapistore_folder_open_message(struct mapistore_context *, u
 enum mapistore_error mapistore_folder_create_message(struct mapistore_context *, uint32_t, void *, TALLOC_CTX *, uint64_t, uint8_t, void **);
 enum mapistore_error mapistore_folder_delete_message(struct mapistore_context *, uint32_t, void *, uint64_t, uint8_t);
 enum mapistore_error mapistore_folder_move_copy_messages(struct mapistore_context *, uint32_t, void *, void *, TALLOC_CTX *, uint32_t, uint64_t *, uint64_t *, struct Binary_r **, uint8_t);
+enum mapistore_error mapistore_folder_move_copy_messages_between_backends(struct mapistore_context *, uint32_t, void *, uint32_t, void *, TALLOC_CTX *, uint32_t, uint64_t *, uint64_t *, struct Binary_r **, uint8_t);
 enum mapistore_error mapistore_folder_move_folder(struct mapistore_context *, uint32_t, void *, void *, TALLOC_CTX *, const char *);
+enum mapistore_error mapistore_folder_copy_folder_between_backends(struct mapistore_context *, uint32_t, void *, uint32_t, void *, TALLOC_CTX *, bool, const char *);
+enum mapistore_error mapistore_folder_move_folder_between_backends(struct mapistore_context *, uint32_t, void *, uint32_t, void *, TALLOC_CTX *, const char *);
 enum mapistore_error mapistore_folder_copy_folder(struct mapistore_context *, uint32_t, void *, void *, TALLOC_CTX *, bool, const char *);
 enum mapistore_error mapistore_folder_get_deleted_fmids(struct mapistore_context *, uint32_t, void *, TALLOC_CTX *, enum mapistore_table_type, uint64_t, struct UI8Array_r **, uint64_t *);
 enum mapistore_error mapistore_folder_get_child_count(struct mapistore_context *, uint32_t, void *, enum mapistore_table_type, uint32_t *);

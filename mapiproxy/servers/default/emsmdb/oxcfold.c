@@ -962,14 +962,18 @@ _PUBLIC_ enum MAPISTATUS EcDoRpc_RopMoveCopyMessages(TALLOC_CTX *mem_ctx,
 						     uint32_t *handles, uint16_t *size)
 {
 	enum MAPISTATUS		retval;
+	enum mapistore_error	ret;
 	uint32_t		handle;
-	uint32_t                contextID;
+	uint32_t                dest_contextID;
+	uint32_t		src_contextID;
 	struct mapi_handles	*rec = NULL;
 	void			*private_data = NULL;
 	struct emsmdbp_object	*destination_object;
 	struct emsmdbp_object   *source_object;
 	uint64_t                *targetMIDs;
-        uint32_t                i;
+	uint32_t		mid_count;
+	uint32_t                i;
+	bool			want_copy;
 	bool			mapistore = false;
 
 	DEBUG(4, ("exchange_emsmdb: [OXCFOLD] RopMoveCopyMessages (0x33)\n"));
@@ -985,9 +989,7 @@ _PUBLIC_ enum MAPISTATUS EcDoRpc_RopMoveCopyMessages(TALLOC_CTX *mem_ctx,
 	mapi_repl->error_code = MAPI_E_SUCCESS;
 	mapi_repl->handle_idx = mapi_req->handle_idx;
 
-	mapi_repl->u.mapi_MoveCopyMessages.PartialCompletion = 0;
-
-	/* Get the destionation information */
+	/* Get the destination information */
 	handle = handles[mapi_req->u.mapi_MoveCopyMessages.handle_idx];
 	retval = mapi_handles_search(emsmdbp_ctx->handles_ctx, handle, &rec);
 	if (retval) {
@@ -1023,27 +1025,55 @@ _PUBLIC_ enum MAPISTATUS EcDoRpc_RopMoveCopyMessages(TALLOC_CTX *mem_ctx,
 		goto end;
 	}
 
-	contextID = emsmdbp_get_contextID(destination_object);
-	mapistore = emsmdbp_is_mapistore(source_object);
+	dest_contextID = emsmdbp_get_contextID(destination_object);
+	src_contextID = emsmdbp_get_contextID(source_object);
+	mapistore = emsmdbp_is_mapistore(source_object) && emsmdbp_is_mapistore(destination_object);
 	if (mapistore) {
 		/* We prepare a set of new MIDs for the backend */
-		targetMIDs = talloc_array(NULL, uint64_t, mapi_req->u.mapi_MoveCopyMessages.count);
-		for (i = 0; i < mapi_req->u.mapi_MoveCopyMessages.count; i++) {
-			mapistore_indexing_get_new_folderID(emsmdbp_ctx->mstore_ctx, &targetMIDs[i]);
+		mid_count = mapi_req->u.mapi_MoveCopyMessages.count;
+		targetMIDs = talloc_array(NULL, uint64_t, mid_count);
+		for (i = 0; i < mid_count; i++) {
+			ret = mapistore_indexing_get_new_folderID(emsmdbp_ctx->mstore_ctx, &targetMIDs[i]);
+			if (ret != MAPISTORE_SUCCESS) {
+				mapi_repl->error_code = mapistore_error_to_mapi(ret);
+				talloc_free(targetMIDs);
+				goto end;
+			}
 		}
 
+		want_copy = mapi_req->u.mapi_MoveCopyMessages.WantCopy;
 		/* We invoke the backend method */
-		mapistore_folder_move_copy_messages(emsmdbp_ctx->mstore_ctx, contextID, destination_object->backend_object, source_object->backend_object, mem_ctx, mapi_req->u.mapi_MoveCopyMessages.count, mapi_req->u.mapi_MoveCopyMessages.message_id, targetMIDs, NULL, mapi_req->u.mapi_MoveCopyMessages.WantCopy);
-		talloc_free(targetMIDs);
+		ret = mapistore_folder_move_copy_messages_between_backends(emsmdbp_ctx->mstore_ctx, dest_contextID, destination_object->backend_object, src_contextID, source_object->backend_object, mem_ctx, mid_count, mapi_req->u.mapi_MoveCopyMessages.message_id, targetMIDs, NULL, want_copy);
+		if (ret != MAPISTORE_SUCCESS) {
+			mapi_repl->error_code = mapistore_error_to_mapi(ret);
+			talloc_free(targetMIDs);
+			goto end;
+		}
 
-		/* /\* The backend might do this for us. In any case, we try to add it ourselves *\/ */
-		/* mapistore_indexing_record_add_mid(emsmdbp_ctx->mstore_ctx, contextID, targetMID); */
-	}
-	else {
+		for (i = 0; i < mid_count; i++) {
+			/* The backend might do this for us. In any case, we try to add it ourselves */
+			ret = mapistore_indexing_record_add_mid(emsmdbp_ctx->mstore_ctx, dest_contextID, emsmdbp_ctx->username, targetMIDs[i]);
+			if (ret != MAPISTORE_SUCCESS) {
+				mapi_repl->error_code = mapistore_error_to_mapi(ret);
+				talloc_free(targetMIDs);
+				goto end;
+			}
+			if (want_copy == false) {
+				ret = mapistore_indexing_record_del_mid(emsmdbp_ctx->mstore_ctx, src_contextID, emsmdbp_ctx->username, targetMIDs[i], MAPISTORE_PERMANENT_DELETE);
+				if (ret != MAPISTORE_SUCCESS) {
+					mapi_repl->error_code = mapistore_error_to_mapi(ret);
+					talloc_free(targetMIDs);
+					goto end;
+				}
+			}
+		}
+		talloc_free(targetMIDs);
+	} else {
 		DEBUG(0, ("["__location__"] - mapistore support not implemented yet - shouldn't occur\n"));
 		mapi_repl->error_code = MAPI_E_NO_SUPPORT;
 	}
 
+	mapi_repl->u.mapi_MoveCopyMessages.PartialCompletion = false;
 end:
 	*size += libmapiserver_RopMoveCopyMessages_size(mapi_repl);
 
@@ -1173,7 +1203,8 @@ enum MAPISTATUS EcDoRpc_RopCopyFolder(TALLOC_CTX *mem_ctx, struct emsmdbp_contex
 	struct emsmdbp_object	*source_parent;
 	struct emsmdbp_object	*copy_folder;
 	struct emsmdbp_object	*target_folder;
-	uint32_t		contextID;
+	uint32_t		src_contextID;
+	uint32_t		tgt_contextID;
 
 	DEBUG(4, ("exchange_emsmdb: [OXCFOLD] CopyFolder (0x36)\n"));
 
@@ -1239,8 +1270,9 @@ enum MAPISTATUS EcDoRpc_RopCopyFolder(TALLOC_CTX *mem_ctx, struct emsmdbp_contex
 		goto end;
 	}
 	
-	contextID = emsmdbp_get_contextID(copy_folder);
-	ret = mapistore_folder_copy_folder(emsmdbp_ctx->mstore_ctx, contextID, copy_folder->backend_object, target_folder->backend_object, mem_ctx, request->WantRecursive, request->NewFolderName.lpszW);
+	src_contextID = emsmdbp_get_contextID(copy_folder);
+	tgt_contextID = emsmdbp_get_contextID(target_folder);
+	ret = mapistore_folder_copy_folder_between_backends(emsmdbp_ctx->mstore_ctx, src_contextID, copy_folder->backend_object, tgt_contextID, target_folder->backend_object, mem_ctx, request->WantRecursive, request->NewFolderName.lpszW);
 	mapi_repl->error_code = mapistore_error_to_mapi(ret);
 	response->PartialCompletion = false;
 

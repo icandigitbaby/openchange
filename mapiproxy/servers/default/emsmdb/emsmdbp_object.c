@@ -1291,7 +1291,7 @@ _PUBLIC_ enum mapistore_error emsmdbp_folder_move_folder(struct emsmdbp_context 
 {
 	enum mapistore_error	ret;
 	enum MAPISTATUS		retval;
-	uint32_t		contextID;
+	uint32_t		src_contextID, tgt_contextID;
 	int			system_idx;
 	bool			is_top_of_IS, is_special;
 
@@ -1330,8 +1330,11 @@ _PUBLIC_ enum mapistore_error emsmdbp_folder_move_folder(struct emsmdbp_context 
 		}
 	}
 
-	contextID = emsmdbp_get_contextID(move_folder);
-	ret = mapistore_folder_move_folder(emsmdbp_ctx->mstore_ctx, contextID, move_folder->backend_object, target_folder->backend_object, mem_ctx, new_name);
+	src_contextID = emsmdbp_get_contextID(move_folder);
+	tgt_contextID = emsmdbp_get_contextID(target_folder);
+
+	ret = mapistore_folder_move_folder_between_backends(emsmdbp_ctx->mstore_ctx, src_contextID, move_folder->backend_object,
+							    tgt_contextID, target_folder->backend_object, mem_ctx, new_name);
 	if (move_folder->object.folder->mapistore_root) {
 		retval = openchangedb_delete_folder(emsmdbp_ctx->oc_ctx, emsmdbp_ctx->username, move_folder->object.folder->folderID);
 		if (retval) {
