@@ -564,7 +564,6 @@ class FolderObject(ContextObject):
         self.parentdict = parentdict
         self.parentFID = parentFID;
         self.folderID = folderID;
-        return
 
     def open_folder(self, folderID):
         print '[PYTHON]: %s folder.open_folder(0x%x)' % (self.name, folderID)
@@ -752,7 +751,6 @@ class TableObject(BackendObject):
         self.folder = folder
         self.tableType = tableType
         self.properties = []
-        return
 
     def set_columns(self, properties):
         print '[PYTHON]: %s table.set_columns()' % (self.name)
@@ -800,8 +798,6 @@ class MessageObject(BackendObject):
         self.basedict = message
         self.mid = mid
         self.rw = rw
-        return
-
 
     def get_message_data(self):
         print '[PYTHON]: %s message.get_message_data()' % (self.name)
@@ -912,8 +908,6 @@ class AttachmentObject(BackendObject):
         self.basedict = attachment
         self.message = message
         self.attachid = attachid
-        return
-
 
     def save(self):
         print '[PYTHON]: %s attachment.save()' % (self.name)
