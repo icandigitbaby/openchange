@@ -723,10 +723,9 @@ class FolderObject(ContextObject):
         folder = self.basedict.copy()
         folder["properties"]["PidTagDisplayName"] = new_name
         folder["properties"]["PidTagParentFolderId"] = target_folder.basedict["properties"]["PidTagFolderId"]
-        if recursive:
+        if not recursive:
             folder["subfolders"] = []
         target_folder.basedict["subfolders"].append(folder)
-
         return 0
 
     def get_properties(self, properties):
