@@ -600,10 +600,12 @@ class FolderObject(ContextObject):
     def delete(self):
         print '[PYTHON]: %s folder.delete(%s)' % (self.name, self.folderID)
 
-        for item in self.parentdict["subfolders"]:
-            if str(item["fid"]) == str(self.folderID):
-                self.parentdict["subfolders"].remove(item)
-                return 0
+        if self.parentdict is None:
+            return 23
+
+        if self.basedict in self.parentdict["subfolders"]:
+            self.parentdict["subfolders"].remove(self.basedict)
+            return 0
         return 17
 
     def open_table(self, table_type):
@@ -728,9 +730,7 @@ class FolderObject(ContextObject):
     def set_properties(self, properties):
         print '[PYTHON]: %s folder.set_properties()' % (self.name)
 
-        tmpdict = self.basedict["properties"].copy()
-        tmpdict.update(properties)
-        self.basedict["properties"] = tmpdict
+        self.basedict["properties"].update(properties)
 
         print self.basedict["properties"]
         return 0
@@ -796,9 +796,7 @@ class MessageObject(BackendObject):
     def __del__(self):
         print '[PYTHON]: %s message.__del__()' % (self.name)
 
-        for item in self.folder.basedict["message_cache"]:
-            if str(item["mid"]) == str(self.mid):
-                self.folder.badedict["message_cache"].remove(item)
+        self.folder.basedict["message_cache"].remove(self.basedict)
         return
 
     def get_message_data(self):
@@ -814,9 +812,7 @@ class MessageObject(BackendObject):
     def set_properties(self, properties):
         print '[PYTHON]: %s message.set_properties()' % (self.name)
 
-        tmpdict = self.basedict["properties"].copy()
-        tmpdict.update(properties)
-        self.basedict["properties"] = tmpdict;
+        self.basedict["properties"].update(properties);
 
         print self.basedict["properties"]
         return 0
@@ -913,9 +909,7 @@ class AttachmentObject(BackendObject):
     def __del__(self):
         print '[PYTHON]: %s attachment.__del__()' % (self.name)
 
-        for item in self.message.basedict["attachment_cache"]:
-            if str(item["attachid"]) == str(self.attachid):
-                self.message.basedict["attachment_cache"].remove(item)
+        self.message.basedict["attachment_cache"].remove(self.basedict)
         return
 
     def save(self):
@@ -938,9 +932,7 @@ class AttachmentObject(BackendObject):
     def set_properties(self, properties):
         print '[PYTHON]: %s folder.set_properties()' % (self.name)
 
-        tmpdict = self.basedict["properties"].copy()
-        tmpdict.update(properties)
-        self.basedict["properties"] = tmpdict
+        self.basedict["properties"].update(properties)
 
         print self.basedict["properties"]
         return 0
