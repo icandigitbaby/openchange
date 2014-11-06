@@ -2518,6 +2518,7 @@ static enum mapistore_error mapistore_python_message_create_attachment(TALLOC_CT
 
 	/* Sanity checks */
 	MAPISTORE_RETVAL_IF(!message_object, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+	MAPISTORE_RETVAL_IF(!attachment_object, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
 
 	/* Retrieve the message object */
 	pyobj = (struct mapistore_python_object *) message_object;
@@ -2571,7 +2572,6 @@ static enum mapistore_error mapistore_python_message_create_attachment(TALLOC_CT
 	}
 	id = PyLong_AsUnsignedLong(attach_id);
 	Py_DECREF(attach_id);
-
 
 	/* Return the attachment object and the Attachment ID */
 	pyattach = talloc_zero(pyobj, struct mapistore_python_object);
@@ -2818,8 +2818,9 @@ static enum mapistore_error mapistore_python_message_get_attachment_ids(TALLOC_C
 	DEBUG(5, ("[INFO] %s\n", __FUNCTION__));
 
 	/* Sanity checks */
-	MAPISTORE_RETVAL_IF(!attach_ids, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
 	MAPISTORE_RETVAL_IF(!message_object, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+	MAPISTORE_RETVAL_IF(!attach_ids, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+	MAPISTORE_RETVAL_IF(!id_count, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
 
 	/* Retrieve the message object */
 	pyobj = (struct mapistore_python_object *) message_object;
