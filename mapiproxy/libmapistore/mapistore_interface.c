@@ -790,28 +790,155 @@ _PUBLIC_ enum mapistore_error mapistore_folder_move_copy_messages_between_backen
 										   TALLOC_CTX *mem_ctx, uint32_t mid_count, uint64_t *source_mids,
 										   uint64_t *target_mids, struct Binary_r **target_change_keys, uint8_t want_copy)
 {
-	struct backend_context	*source_backend_ctx;
-	struct backend_context	*target_backend_ctx;
-	uint32_t		i;
+	TALLOC_CTX			*local_mem_ctx;
+	struct backend_context		*backend_ctx;
+	struct SPropTagArray		*prop_tags;
+	struct SRow			*aRow;
+	struct mapistore_property_data  *prop_data;
+	void				*tgt_msg;
+	void				*src_msg;
+	enum mapistore_error		retval = MAPISTORE_SUCCESS;
+	uint32_t			i;
+	uint32_t			j;
+	bool				fai = false;
+
 	/* Sanity checks */
 	MAPISTORE_SANITY_CHECKS(mstore_ctx, NULL);
 
-	/* Step 1. Search the contexts */
-	source_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, source_context_id);
-	MAPISTORE_RETVAL_IF(!source_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+	/* Step 1. Check if the backend's move_copy function can be called */
+	if (source_context_id == target_context_id) {
+		/* Search the context */
+		backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, target_context_id);
+		MAPISTORE_RETVAL_IF(!backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
 
-	target_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, target_context_id);
-	MAPISTORE_RETVAL_IF(!target_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
-
-	/* Step 2. Copy the messages between folders */
-	for (i = 0; i < mid_count; i++) {
-		/* Step 2a. Create a message */
-		/* Step 2b. Get the source message properties */
-		/* Step 2c. Set the properties of the target message */
-		/* Step 2d. If it's a move operation, delete the source message */
+		return mapistore_backend_folder_move_copy_messages(backend_ctx, target_folder,
+								   source_folder, mem_ctx, mid_count,
+								   source_mids, target_mids,
+								   target_change_keys, want_copy);
 	}
 
-	return MAPISTORE_SUCCESS;
+	/* Step 2. Loop over the source messages and copy them into the target folder */
+	local_mem_ctx = talloc_new(NULL);
+	if (local_mem_ctx == NULL) {
+		return MAPISTORE_ERR_NO_MEMORY;
+	}
+
+	for (i = 0; i < mid_count; i++)
+	{
+		/* Step 2a. Open the source message */
+		retval = mapistore_folder_open_message(mstore_ctx, source_context_id, source_folder, local_mem_ctx, source_mids[i], false, &src_msg);
+		if (retval != MAPISTORE_SUCCESS) {
+			goto end;
+		}
+
+		/* Step 2b.Get the source message properties */
+		prop_tags = talloc_zero(local_mem_ctx, struct SPropTagArray);
+		if (prop_tags == NULL) {
+			retval = MAPISTORE_ERR_NO_MEMORY;
+			goto end;
+		}
+
+		prop_tags->aulPropTag = talloc_zero(prop_tags, void);
+		if (prop_tags->aulPropTag == NULL) {
+			retval = MAPISTORE_ERR_NO_MEMORY;
+			goto end;
+		}
+
+		retval = mapistore_properties_get_available_properties(mstore_ctx, source_context_id, src_msg, local_mem_ctx, &prop_tags);
+		if (retval != MAPISTORE_SUCCESS) {
+			goto end;
+		}
+
+		prop_data = talloc_zero_array(prop_tags, struct mapistore_property_data, prop_tags->cValues);
+		if (prop_data == NULL) {
+			retval = MAPISTORE_ERR_NO_MEMORY;
+			goto end;
+		}
+
+		retval = mapistore_properties_get_properties(mstore_ctx, source_context_id, src_msg, local_mem_ctx,
+							     prop_tags->cValues, prop_tags->aulPropTag, prop_data);
+		if (retval != MAPISTORE_SUCCESS) {
+			goto end;
+		}
+
+		talloc_free(src_msg);
+
+		/* Step 2c. Check if the source message is FAI */
+		for (j = 0; j < prop_tags->cValues; j++ ) {
+			if (prop_tags->aulPropTag[j] == PidTagMessageFlags) {
+				fai = (bool) (prop_data[i].data && 0x40);
+			}
+		}
+
+		 /* Step 2d. Create a new message in the target folder */
+		retval = mapistore_folder_create_message(mstore_ctx, target_context_id, target_folder, local_mem_ctx, target_mids[i], fai, &tgt_msg);
+		if (retval != MAPISTORE_SUCCESS) {
+			goto end;
+		}
+
+		/* Step 2e. Set the properties of the target message*/
+		aRow = talloc_zero(tgt_msg, struct SRow);
+		if (aRow == NULL) {
+			retval = MAPISTORE_ERR_NO_MEMORY;
+			goto end;
+		}
+
+		aRow->lpProps = talloc_array(aRow, struct SPropValue, prop_tags->cValues);
+		if (aRow->lpProps == NULL) {
+			retval = MAPISTORE_ERR_NO_MEMORY;
+			goto end;
+		}
+
+		aRow->cValues = 0;
+
+		for (j = 0; j < prop_tags->cValues; j++) {
+			if (prop_data[j].error != MAPISTORE_SUCCESS) {
+				DEBUG(0, ("[ERR][%s]: [%d]: '%s'\n", __location__,
+					  prop_tags->aulPropTag[j],
+					  mapistore_errstr(prop_data[j].error)));
+				continue;
+			}
+
+			/* Don't modify the properties that are singular to the copied message */
+			if ((prop_tags->aulPropTag[j] == PidTagMid) ||
+			    (prop_tags->aulPropTag[j] == PidTagParentEntryId) ||
+			    (prop_tags->aulPropTag[j] == PidTagParentFolderId) ||
+			    (prop_tags->aulPropTag[j] == PidTagParentSourceKey)) {
+				continue;
+			}
+
+			/* Update aRow */
+			aRow->lpProps = add_SPropValue(local_mem_ctx, aRow->lpProps, &(aRow->cValues),
+							prop_tags->aulPropTag[j], prop_data[j].data);
+		}
+
+		retval = mapistore_properties_set_properties(mstore_ctx, target_context_id, tgt_msg, aRow);
+		if (retval != MAPISTORE_SUCCESS) {
+			goto end;
+		}
+
+		/* Step 2f. Save the message */
+		retval = mapistore_message_save(mstore_ctx, target_context_id, tgt_msg, local_mem_ctx);
+		if (retval != MAPISTORE_SUCCESS) {
+			goto end;
+		}
+
+		/* Step 2g. Clean up */
+		if (want_copy == false) {
+			retval = mapistore_folder_delete_message(mstore_ctx, source_context_id,
+								 source_folder, source_mids[i],
+								 MAPISTORE_PERMANENT_DELETE);
+			if (retval != MAPISTORE_SUCCESS) {
+				goto end;
+			}
+		}
+
+		talloc_free(tgt_msg);
+		talloc_free(prop_tags);
+	}
+end:
+	talloc_free(local_mem_ctx);
+	return retval;
 }
 
 /**
@@ -876,6 +1003,7 @@ _PUBLIC_ enum mapistore_error mapistore_folder_copy_folder_between_backends(stru
 
 	retval = mapistore_backend_folder_create_folder(target_backend_ctx, target_folder, mem_ctx, new_fid, aRow, &child_folder);
 	talloc_free(aRow);
+
 	if (retval != MAPISTORE_SUCCESS) {
 		goto end;
 	}

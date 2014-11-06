@@ -47,7 +47,7 @@ static PyObject *py_MAPIStoreFolder_create_folder(PyMAPIStoreFolderObject *self,
 	const char		*desc = NULL;
 	enum mapistore_error	retval;
 	uint64_t		fid;
-	int32_t		foldertype = FOLDER_GENERIC;
+	int32_t			foldertype = FOLDER_GENERIC;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sH", kwnames, &name, &desc, &foldertype)) {
 		return NULL;
@@ -676,8 +676,8 @@ static PyObject *py_MAPIStoreFolder_copy_messages(PyMAPIStoreFolderObject *self,
 	}
 
 	/* Move/copy messages */
-	retval = mapistore_folder_move_copy_messages(self->context->mstore_ctx, self->context->context_id,
-			target_folder->folder_object, self->folder_object, target_folder->mem_ctx, count,
+	retval = mapistore_folder_move_copy_messages_between_backends(self->context->mstore_ctx, target_folder->context->context_id,
+			target_folder->folder_object, self->context->context_id, self->folder_object, target_folder->mem_ctx, count,
 			source_mids, target_mids, NULL, true);
 	if (retval != MAPISTORE_SUCCESS) {
 		PyErr_SetMAPIStoreError(retval);
@@ -776,8 +776,8 @@ static PyObject *py_MAPIStoreFolder_move_messages(PyMAPIStoreFolderObject *self,
 	}
 
 	/* Move/copy messages */
-	retval = mapistore_folder_move_copy_messages(self->context->mstore_ctx, self->context->context_id,
-			target_folder->folder_object, self->folder_object, target_folder->mem_ctx, count,
+	retval = mapistore_folder_move_copy_messages_between_backends(self->context->mstore_ctx, target_folder->context->context_id,
+			target_folder->folder_object, self->context->context_id, self->folder_object, target_folder->mem_ctx, count,
 			source_mids, target_mids, NULL, false);
 	if (retval != MAPISTORE_SUCCESS) {
 		PyErr_SetMAPIStoreError(retval);
