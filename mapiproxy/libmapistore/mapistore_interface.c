@@ -949,8 +949,7 @@ _PUBLIC_ enum mapistore_error mapistore_folder_copy_folder_between_backends(stru
 									    const char *new_folder_name)
 {
 	TALLOC_CTX		*local_mem_ctx;
-	struct backend_context	*source_backend_ctx;
-	struct backend_context	*target_backend_ctx;
+	struct backend_context	*backend_ctx;
 	struct SRow 		*aRow;
 	void			*child_folder;
 	uint64_t		new_fid;
@@ -959,29 +958,28 @@ _PUBLIC_ enum mapistore_error mapistore_folder_copy_folder_between_backends(stru
 	/* Sanity checks */
 	MAPISTORE_SANITY_CHECKS(mstore_ctx, NULL);
 
-	/* Step 1. Search the contexts */
-	source_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, source_context_id);
-	MAPISTORE_RETVAL_IF(!source_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+	/* Step 1. Check if the backend's move_copy function can be called */
+	if (source_context_id == target_context_id) {
+		/* Search the context */
+		backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, target_context_id);
+		MAPISTORE_RETVAL_IF(!backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
 
-	target_backend_ctx = mapistore_backend_lookup(mstore_ctx->context_list, target_context_id);
-	MAPISTORE_RETVAL_IF(!target_backend_ctx, MAPISTORE_ERR_INVALID_PARAMETER, NULL);
+		return mapistore_backend_folder_copy_folder(backend_ctx, move_folder, target_folder,
+							    mem_ctx, recursive,  new_folder_name);
+	}
 
-	/* Step 2. Create a subfolder in the target folder */
+	/* Create a subfolder in the target folder */
 	local_mem_ctx = talloc_new(NULL);
 	if (local_mem_ctx == NULL) {
 		return MAPISTORE_ERR_NO_MEMORY;
 	}
 
-	/* Step 2a. Get FID for the new folder (backend should care about not duplicating folders) */
+	/* Get FID for the new folder */
 	retval = mapistore_indexing_get_new_folderID(mstore_ctx, &new_fid);
 
 	if (retval != MAPISTORE_SUCCESS) {
 		goto end;
 	}
-
-	/* Step 2b. Get the properties of the folder */
-	/* Step 2c. Create the folder */
-	/* Step 2d. Change the name of the folder */
 
 	/* Set the name and properties of the folder */
 	aRow = talloc_zero(local_mem_ctx, struct SRow);
@@ -990,18 +988,17 @@ _PUBLIC_ enum mapistore_error mapistore_folder_copy_folder_between_backends(stru
 		goto end;
 	}
 
-	aRow->lpProps = talloc_array(aRow, struct SPropValue, 3);
+	aRow->lpProps = talloc_array(aRow, struct SPropValue, 1);
 	if (retval != MAPISTORE_SUCCESS) {
 		retval = MAPISTORE_ERR_NO_MEMORY;
 		goto end;
 	}
 	aRow->cValues = 0;
 
-	/* We assume the name is in UNICODE */
 	aRow->lpProps = add_SPropValue(mem_ctx, aRow->lpProps, &(aRow->cValues),
-				       PR_DISPLAY_NAME_UNICODE, (void *)new_folder_name);
+				       PidTagDisplayName, (void *)new_folder_name);
 
-	retval = mapistore_backend_folder_create_folder(target_backend_ctx, target_folder, mem_ctx, new_fid, aRow, &child_folder);
+	retval = mapistore_folder_create_folder(mstore_ctx, target_context_id, target_folder, local_mem_ctx, new_fid, aRow, &child_folder);
 	talloc_free(aRow);
 
 	if (retval != MAPISTORE_SUCCESS) {
