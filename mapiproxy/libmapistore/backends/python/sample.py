@@ -682,6 +682,7 @@ class FolderObject(ContextObject):
                 found = True
                 self.basedict["messages"].remove(msg)
                 self.basedict["properties"]["PidTagContentCount"] = len(self.basedict["messages"])
+                break
 
         for cached_msg in self.basedict["message_cache"]:
             found = True
@@ -839,6 +840,7 @@ class MessageObject(BackendObject):
         for msg in self.folder.basedict["messages"]:
             if msg["mid"] == self.mid:
                 self.folder.basedict["messages"].remove(msg)
+                break
 
         self.folder.basedict["messages"].append(self.basedict.copy())
         self.folder.basedict["properties"]["PidTagContentCount"] = len(self.folder.basedict["messages"])
@@ -889,13 +891,16 @@ class MessageObject(BackendObject):
             if att["attachid"] == attach_id:
                 found = True
                 self.basedict["attachments"].remove(att)
+                break
 
         for cached_att in self.basedict["attachment_cache"]:
             if cached_att["attachid"] == attach_id:
                 found = True
                 self.basedict["attachment_cache"].remove(cached_att)
+
         self.basedict["PidTagContentCount"] = len(self.basedict["attachments"])
         self.basedict["properties"]["PidTagHasAttachments"] = len(self.basedict["attachments"]) > 0
+
         if found:
             return 0
         return 17
@@ -931,6 +936,7 @@ class AttachmentObject(BackendObject):
         for att in self.message.basedict["attachments"]:
             if att["attachid"] == self.attachid:
                 self.message.basedict["attachments"].remove(att)
+                break
 
         self.message.basedict["attachments"].append(self.basedict.copy())
         self.message.basedict["properties"]["PidTagContentCount"] = len(self.message.basedict["attachments"])
