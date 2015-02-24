@@ -30,21 +30,22 @@
  */
 
 
-static enum mapistore_error mapistore_op_defaults_init(void)
+static enum mapistore_error mapistore_op_defaults_init(const char *module_name)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));	
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_list_contexts(const char *owner, struct indexing_context *indexing,
-								TALLOC_CTX *mem_ctx, 
+static enum mapistore_error mapistore_op_defaults_list_contexts(TALLOC_CTX *mem_ctx, const char *backend_name,
+								const char *owner, struct indexing_context *indexing,
 								struct mapistore_contexts_list **contexts_listp)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_create_context(TALLOC_CTX *mem_ctx, 
+static enum mapistore_error mapistore_op_defaults_create_context(TALLOC_CTX *mem_ctx,
+								 const char *module_name,
 								 struct mapistore_connection_info *conn_info,
 								 struct indexing_context *indexing_ctx,
 								 const char *uri, void **ctx)
@@ -53,26 +54,27 @@ static enum mapistore_error mapistore_op_defaults_create_context(TALLOC_CTX *mem
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_create_root_folder(const char *username, 
+static enum mapistore_error mapistore_op_defaults_create_root_folder(TALLOC_CTX *mem_ctx,
+								     const char *module_name,
+								     const char *username,
 								     enum mapistore_context_role ctx_role, 
 								     uint64_t fid, 
 								     const char *name,
-								     TALLOC_CTX *mem_ctx,
 								     char **mapistore_urip)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_path(void *ctx_obj, TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_path(TALLOC_CTX *mem_ctx, void *ctx_obj,
 							   uint64_t fmid, char **path)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_root_folder(void *backend_object,
-								  TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_root_folder(TALLOC_CTX *mem_ctx,
+								  void *backend_object,
 								  uint64_t fid,
 								  void **root_folder_object)
 {
@@ -80,8 +82,8 @@ static enum mapistore_error mapistore_op_defaults_get_root_folder(void *backend_
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_open_folder(void *folder_object,
-							      TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_open_folder(TALLOC_CTX *mem_ctx,
+							      void *folder_object,
 							      uint64_t fid,
 							      void **child_folder_object)
 {
@@ -89,10 +91,8 @@ static enum mapistore_error mapistore_op_defaults_open_folder(void *folder_objec
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_create_folder(void *folder_object,
-								TALLOC_CTX *mem_ctx,
-								uint64_t fid,
-								struct SRow *aRow,
+static enum mapistore_error mapistore_op_defaults_create_folder(TALLOC_CTX *mem_ctx, void *folder_object,
+								uint64_t fid, struct SRow *aRow,
 								void **child_folder_object)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
@@ -105,8 +105,8 @@ static enum mapistore_error mapistore_op_defaults_delete_folder(void *folder_obj
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_open_message(void *folder_object,
-							       TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_open_message(TALLOC_CTX *mem_ctx,
+							       void *folder_object,
 							       uint64_t mid,
 							       bool rw,
 							       void **message_object)
@@ -115,8 +115,8 @@ static enum mapistore_error mapistore_op_defaults_open_message(void *folder_obje
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_create_message(void *folder_object,
-								 TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_create_message(TALLOC_CTX *mem_ctx,
+								 void *folder_object,
 								 uint64_t mid,
 								 uint8_t associated,
 								 void **message_object)
@@ -165,12 +165,9 @@ static enum mapistore_error mapistore_op_defaults_get_child_count(void *folder_o
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_open_table(void *folder_object,
-							     TALLOC_CTX *mem_ctx,
-							     enum mapistore_table_type table_type,
-							     uint32_t handle_id,
-							     void **table_object,
-							     uint32_t *row_count)
+static enum mapistore_error mapistore_op_defaults_open_table(TALLOC_CTX *mem_ctx, void *folder_object,
+							     enum mapistore_table_type table_type, uint32_t handle_id,
+							     void **table_object, uint32_t *row_count)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
@@ -185,8 +182,8 @@ static enum mapistore_error mapistore_op_defaults_modify_permissions(void *folde
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_message_data(void *message_object,
-								   TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_message_data(TALLOC_CTX *mem_ctx,
+								   void *message_object,
 								   struct mapistore_message **msg)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
@@ -208,7 +205,7 @@ static enum mapistore_error mapistore_op_defaults_set_read_flag(void *message_ob
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_save(void *message_object, TALLOC_CTX *mem_ctx)
+static enum mapistore_error mapistore_op_defaults_save(TALLOC_CTX *mem_ctx, void *message_object)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
@@ -220,8 +217,8 @@ static enum mapistore_error mapistore_op_defaults_submit(void *message_object, e
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_open_attachment(void *message_object,
-								  TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_open_attachment(TALLOC_CTX *mem_ctx,
+								  void *message_object,
 								  uint32_t aid,
 								  void **attachment_object)
 {
@@ -238,8 +235,8 @@ static enum mapistore_error mapistore_op_defaults_create_attachment(void *messag
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_attachment_table(void *message_object,
-								       TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_attachment_table(TALLOC_CTX *mem_ctx,
+								       void *message_object,
 								       void **table_object,
 								       uint32_t *row_count)
 {
@@ -257,8 +254,8 @@ static enum mapistore_error mapistore_op_defaults_open_embedded_message(void *me
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_available_properties(void *x_object,
-									   TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_available_properties(TALLOC_CTX *mem_ctx,
+									   void *x_object,
 									   struct SPropTagArray **propertiesp)
 {
 	DEBUG(3, ("[%s:%d] MAPISTORE defaults - MAPISTORE_ERR_NOT_IMPLEMENTED\n", __FUNCTION__, __LINE__));
@@ -289,8 +286,8 @@ static enum mapistore_error mapistore_op_defaults_set_sort_order(void *table_obj
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_row(void *table_object,
-							  TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_row(TALLOC_CTX *mem_ctx,
+							  void *table_object,
 							  enum mapistore_query_type query_type,
 							  uint32_t rowid,
 							  struct mapistore_property_data **data)
@@ -314,8 +311,8 @@ static enum mapistore_error mapistore_op_defaults_handle_destructor(void *table_
 	return MAPISTORE_ERR_NOT_IMPLEMENTED;
 }
 
-static enum mapistore_error mapistore_op_defaults_get_properties(void *x_object,
-								 TALLOC_CTX *mem_ctx,
+static enum mapistore_error mapistore_op_defaults_get_properties(TALLOC_CTX *mem_ctx,
+								 void *x_object,
 								 uint16_t count,
 								 enum MAPITAGS *properties,
 								 struct mapistore_property_data *data)
